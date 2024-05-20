@@ -1,5 +1,5 @@
-from storeapi.models.post import UserPostIn
-from fastapi import APIRouter
+from storeapi.models.post import UserPostIn, CommentIn
+from fastapi import APIRouter, HTTPException
 
 router = APIRouter()
 
@@ -10,6 +10,11 @@ async def root():
 
 
 post_table = {}
+comment_table = {}
+
+
+def find_post_by_id(post_id: int):
+    return post_table.get(post_id)
 
 
 @router.post("/post")
@@ -21,6 +26,42 @@ async def create_post(post: UserPostIn):
     return new_post
 
 
+@router.post("/comment")
+async def create_comment(comment: CommentIn, status_code=201):
+    post = find_post_by_id(comment.post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    data = comment.dict()
+    last_record_id = len(comment_table)
+    new_comment = {**data, "id": last_record_id}
+    comment_table[last_record_id] = new_comment
+    return new_comment
+
+
 @router.get("/post")
 async def get_post():
     return post_table
+
+
+@router.get("/comment")
+async def get_comment():
+    return comment_table
+
+
+@router.get("/post/{post_id}/comments")
+async def get_post_comments(post_id: int):
+    post = find_post_by_id(post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    comments = [comment for comment in comment_table.values() if comment["post_id"] == post_id]
+    return comments
+
+
+@router.get("/post/{post_id}")
+async def get_post(post_id: int):
+    post = find_post_by_id(post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    return post
